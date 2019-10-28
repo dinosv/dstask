@@ -43,6 +43,10 @@ type Task struct {
 	Created  time.Time
 	Resolved time.Time
 	Due      time.Time
+
+	// only valid for resolved and recurring tasks
+	// syntax: cron
+	Schedule string `yaml:"omitempty"`
 }
 
 func (task Task) String() string {
