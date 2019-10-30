@@ -44,9 +44,13 @@ type Task struct {
 	Resolved time.Time
 	Due      time.Time
 
-	// only valid for resolved and recurring tasks
-	// syntax: cron
+	// only valid for recurring tasks, and resolved recurring tasks. Tasks
+	// created by a recurring task should have this removed or will fail
+	// validation. syntax: cron.
 	Schedule string `yaml:"omitempty"`
+	// task this was derived from. At the moment this means a recurring task
+	// but could also be a template task in future
+	Parent   string `yaml:"omitempty"`
 }
 
 func (task Task) String() string {

@@ -23,6 +23,8 @@ type CmdLine struct {
 	IDsExhausted  bool
 	// any words after the note operator: /
 	Note string
+	// cron syntax for reccurence
+	Schedule      string
 }
 
 // reconstruct args string
@@ -54,6 +56,10 @@ func (cmdLine CmdLine) String() string {
 
 	if cmdLine.Text != "" {
 		args = append(args, "\""+cmdLine.Text+"\"")
+	}
+
+	if cmdLine.Schedule != "" {
+		args = append(args, "\""+cmdLine.Schedule+"\"")
 	}
 
 	return strings.Join(args, " ")
