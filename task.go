@@ -5,9 +5,13 @@ package dstask
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"sort"
 	"strings"
 	"time"
+
+	yaml "gopkg.in/yaml.v2"
 )
 
 type SubTask struct {
@@ -18,12 +22,16 @@ type SubTask struct {
 type Task struct {
 	// not stored in file -- rather filename and directory
 	UUID   string `yaml:"-"`
-	Status string `yaml:"-"`
+	Status string `yaml:",omitempty"`
 	// is new or has changed. Need to write to disk.
 	WritePending bool `yaml:"-"`
 
-	// ephemeral, used to address tasks quickly. Non-resolved only.
-	ID int `yaml:",omitempty"`
+	// ephemeral, used to address tasks quickly. Non-resolved only. Populated
+	// from IDCache or on-the-fly.
+	ID int `yaml:"-"`
+
+	// Deleted, if true, marks this task for deletion
+	Deleted bool `yaml:"-"`
 
 	// concise representation of task
 	Summary string
@@ -48,9 +56,14 @@ type Task struct {
 	// created by a recurring task should have this removed or will fail
 	// validation. syntax: cron.
 	Schedule string `yaml:"omitempty"`
+
 	// task this was derived from. At the moment this means a recurring task
 	// but could also be a template task in future
 	Parent   string `yaml:"omitempty"`
+
+	// TaskSet uses this to indicate if a given task is excluded by a filter
+	// (context etc)
+	filtered bool
 }
 
 func (task Task) String() string {
@@ -136,6 +149,8 @@ func (task *Task) MatchesFilter(cmdLine CmdLine) bool {
 	return true
 }
 
+// Normalise mutates and sorts some of a task object's fields into a consistent
+// format. This should make git diffs more useful.
 func (task *Task) Normalise() {
 	task.Project = strings.ToLower(task.Project)
 
@@ -192,5 +207,80 @@ func (task *Task) LongSummary() string {
 		return task.Summary + " " + NOTE_MODE_KEYWORD + " " + lastNote
 	} else {
 		return task.Summary
+	}
+}
+
+func (task *Task) Modify(cmdLine CmdLine) {
+	for _, tag := range cmdLine.Tags {
+		if !StrSliceContains(task.Tags, tag) {
+			task.Tags = append(task.Tags, tag)
+		}
+	}
+
+	for i, tag := range task.Tags {
+		if StrSliceContains(cmdLine.AntiTags, tag) {
+			// delete item
+			task.Tags = append(task.Tags[:i], task.Tags[i+1:]...)
+		}
+	}
+
+	if cmdLine.Project != "" {
+		task.Project = cmdLine.Project
+	}
+
+	if StrSliceContains(cmdLine.AntiProjects, task.Project) {
+		task.Project = ""
+	}
+
+	if cmdLine.Priority != "" {
+		task.Priority = cmdLine.Priority
+	}
+}
+
+func (t *Task) SaveToDisk() {
+	// save should be idempotent
+	t.WritePending = false
+
+	filepath := MustGetRepoPath(t.Status, t.UUID+".yml")
+
+	if t.Deleted {
+		// Task is marked deleted. Delete from its current status directory.
+		if err := os.Remove(filepath); err != nil {
+			ExitFail("Could not remove task %s: %v", filepath, err)
+		}
+
+	} else {
+		// Task is not deleted, and will be written to disk to a directory
+		// that indicates its current status. We make a shallow copy first,
+		// and we set Status to empty string. This shallow copy is serialised
+		// to disk, with the Status field omitted. This avoids redundant data.
+		taskCp := *t
+		taskCp.Status = ""
+		d, err := yaml.Marshal(&taskCp)
+		if err != nil {
+			// TODO present error to user, specific error message is important
+			ExitFail("Failed to marshal task %s", t)
+		}
+
+		err = ioutil.WriteFile(filepath, d, 0600)
+		if err != nil {
+			ExitFail("Failed to write task %s", t)
+		}
+	}
+
+	// Delete task from other status directories. Only one copy should exist, at most.
+	for _, st := range ALL_STATUSES {
+		if st == t.Status {
+			continue
+		}
+
+		filepath := MustGetRepoPath(st, t.UUID+".yml")
+
+		if _, err := os.Stat(filepath); !os.IsNotExist(err) {
+			err := os.Remove(filepath)
+			if err != nil {
+				ExitFail("Could not remove task %s: %v", filepath, err)
+			}
+		}
 	}
 }

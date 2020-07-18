@@ -10,17 +10,14 @@ set -e
 
 # isolated db locations (repo2 is used for a sync target)
 export DSTASK_GIT_REPO=$(mktemp -d)
-export DSTASK_CONTEXT_FILE=$(mktemp -u)
+export UPSTREAM_BARE_REPO=$(mktemp -d)
 export DSTASK_FAKE_PTY=1
-
-UPSTREAM_BARE_REPO=$(mktemp -d)
 
 cleanup() {
     set +x
     set +e
     rm -rf $DSTASK_GIT_REPO
     rm -rf $UPSTREAM_BARE_REPO
-    rm $DSTASK_CONTEXT_FILE
     rm dstask
 }
 
@@ -40,22 +37,27 @@ git -C $UPSTREAM_BARE_REPO init --bare
 ./dstask add test task +foo project:bar
 ./dstask start 1
 ./dstask stop 1
+./dstask remove 1
+./dstask add re-add add test task +foo project:bar
 ./dstask add another task
 ./dstask +foo
 ./dstask -foo
 ./dstask -project:foo
 ./dstask 2 done
-./dstask 1 done
 ./dstask undo
 ./dstask log something
 ./dstask +foo
 ./dstask note 1 this is a note
+./dstask note > /dev/null
 ./dstask context +foo
 ./dstask next
 ./dstask 1 done
 ./dstask show-resolved
-./dstask show-untagged
 ./dstask show-projects
+
+# -- to remove current context which is +foo
+./dstask add -- unorganised task
+./dstask show-unorganised
 
 # we are in context project:bar, adding with another project should fail
 ./dstask context project:bar
@@ -67,6 +69,23 @@ git -C $UPSTREAM_BARE_REPO init --bare
 ./dstask context
 ./dstask context none
 ./dstask context
+
+# try to resolve a task with an incomplete tasklist: should fail
+./dstask add a tasklist task -- "- [ ] incomplete task"
+! ./dstask 2 done
+
+# test template functions
+./dstask add task to copy
+./dstask add template:2 +copiedTask
+./dstask template 5
+# Task 5 should now be a template
+./dstask show-templates +copiedTask
+# copy Template with some modifications
+./dstask add template:5 -copiedTask +copiedTemplate
+./dstask show-open +copiedTemplate
+# Create new template from CMD line.
+./dstask template give me some things to do P1 +uniqueTag
+./dstask show-templates +uniqueTag
 
 # test import
 ./dstask import-tw < etc/taskwarrior-export.json
@@ -97,3 +116,6 @@ git -C $DSTASK_GIT_REPO diff-files --quiet
 
 # there should be no untracked files changes
 test -z "$(git -C $DSTASK_GIT_REPO ls-files --others)"
+
+# regression test: nil pointer dereference when showing by-week tables of zero length
+./dstask show-resolved project:doesnotexist

@@ -1,16 +1,23 @@
 package dstask
 
-import "os"
+import (
+	"os"
+	"os/user"
+	"path"
+	"strings"
+)
 
 var (
-	GIT_REPO = "~/.dstask/"
-	// space delimited keyword file for compgen
-	CONTEXT_FILE = "~/.cache/dstask/context"
+	GIT_REPO   = "~/.dstask/"
+	STATE_FILE = ""
+	// for locally consistent ID numbers. Separate from state so TaskSet can
+	// guarantee coherent save/load
+	IDS_FILE = ""
 	// for CI testing
 	FAKE_PTY = false
 	// populated by linker flags, see do-release.sh
 	GIT_COMMIT = "Unknown"
-	VERSION = "Unknown"
+	VERSION    = "Unknown"
 	BUILD_DATE = "Unknown"
 )
 
@@ -22,9 +29,13 @@ const (
 	STATUS_DEFERRED  = "deferred"
 	STATUS_PAUSED    = "paused"
 	STATUS_RECURRING = "recurring" // tentative
+	STATUS_TEMPLATES = "templates"
 
 	CMD_NEXT             = "next"
 	CMD_ADD              = "add"
+  CMD_RM               = "rm"
+	CMD_REMOVE           = "remove"
+	CMD_TEMPLATE         = "template"
 	CMD_LOG              = "log"
 	CMD_START            = "start"
 	CMD_NOTE             = "note"
@@ -46,6 +57,7 @@ const (
 	CMD_SHOW_PAUSED      = "show-paused"
 	CMD_SHOW_OPEN        = "show-open"
 	CMD_SHOW_RESOLVED    = "show-resolved"
+	CMD_SHOW_TEMPLATES   = "show-templates"
 	CMD_SHOW_UNORGANISED = "show-unorganised"
 	CMD_COMPLETIONS      = "_completions"
 	CMD_IMPORT_TW        = "import-tw"
@@ -83,7 +95,7 @@ const (
 	FG_PRIORITY_CRITICAL = 160
 	FG_PRIORITY_HIGH     = 166
 	FG_PRIORITY_NORMAL   = FG_DEFAULT
-	FG_PRIORITY_LOW		 = 245
+	FG_PRIORITY_LOW      = 245
 	FG_NOTE              = 240
 )
 
@@ -96,6 +108,7 @@ var ALL_STATUSES = []string{
 	STATUS_PAUSED,
 	STATUS_RECURRING,
 	STATUS_RESOLVED,
+	STATUS_TEMPLATES,
 }
 
 // incomplete until all statuses are implemented
@@ -106,6 +119,7 @@ var VALID_STATUS_TRANSITIONS = [][]string{
 	[]string{STATUS_PENDING, STATUS_RESOLVED},
 	[]string{STATUS_PAUSED, STATUS_RESOLVED},
 	[]string{STATUS_ACTIVE, STATUS_RESOLVED},
+	[]string{STATUS_PENDING, STATUS_TEMPLATES},
 }
 
 // for most operations, it's not necessary or desirable to load the expensive resolved tasks
@@ -116,11 +130,15 @@ var NON_RESOLVED_STATUSES = []string{
 	STATUS_DEFERRED,
 	STATUS_PAUSED,
 	STATUS_RECURRING,
+	STATUS_TEMPLATES,
 }
 
 var ALL_CMDS = []string{
 	CMD_NEXT,
 	CMD_ADD,
+	CMD_RM,
+	CMD_REMOVE,
+  CMD_TEMPLATE,
 	CMD_LOG,
 	CMD_START,
 	CMD_NOTE,
@@ -142,6 +160,7 @@ var ALL_CMDS = []string{
 	CMD_SHOW_PAUSED,
 	CMD_SHOW_OPEN,
 	CMD_SHOW_RESOLVED,
+	CMD_SHOW_TEMPLATES,
 	CMD_SHOW_UNORGANISED,
 	CMD_IMPORT_TW,
 	CMD_COMPLETIONS,
@@ -149,19 +168,38 @@ var ALL_CMDS = []string{
 	CMD_VERSION,
 }
 
-// Replaces default GIT_REPO and CONTEXT_FILE from env if set
-func LoadConfigFromEnv() {
-	_GIT_REPO := os.Getenv("DSTASK_GIT_REPO")
-
-	if _GIT_REPO != "" {
-		GIT_REPO = _GIT_REPO
+func mustExpandHome(filepath string) string {
+	if strings.HasPrefix(filepath, "~/") {
+		usr, err := user.Current()
+		if err != nil {
+			panic(err)
+		}
+		return path.Join(usr.HomeDir, filepath[2:])
+	} else {
+		return filepath
 	}
+}
 
-	_CONTEXT_FILE := os.Getenv("DSTASK_CONTEXT_FILE")
+// Getenv with a default
+func getenv(key string, _default string) string {
+	val := os.Getenv(key)
 
-	if _CONTEXT_FILE != "" {
-		CONTEXT_FILE = _CONTEXT_FILE
+	if val == "" {
+		return _default
+	} else {
+		return val
 	}
+}
+
+// Replaces _default from env, expand ~
+func ParseConfig() {
+	GIT_REPO = getenv("DSTASK_GIT_REPO", GIT_REPO)
+	GIT_REPO = mustExpandHome(GIT_REPO)
+
+	// might seem controversial, but this is a place coherent with the
+	// repository and not tracked by git
+	STATE_FILE = path.Join(GIT_REPO, ".git", "dstask", "state.bin")
+	IDS_FILE = path.Join(GIT_REPO, ".git", "dstask", "ids.bin")
 
 	if os.Getenv("DSTASK_FAKE_PTY") != "" {
 		FAKE_PTY = true

@@ -8,20 +8,18 @@ A personal task tracker designed to help you focus. It is similar to
 [taskwarrior](https://taskwarrior.org/) but uses git to synchronise instead of
 a proprietary protocol.
 
-Dstask is currently in beta -- the interface, data format and commands may
-change before version 1.0. That said, it's unlikely that there will be a
-breaking change as things are nearly finalised.
-
-It's mature enough for daily use. I use dstask dozens of times a day, synchronised across 4 computers.
+Dstask is mature enough for daily use. I use dstask dozens of times a day,
+synchronised across 4 computers.
 
 Features:
 
  * Powerful context system (automatically applies filter/tags to queries and new tasks)
  * **Git powered sync**/undo/resolve (passwordstore.org style) which means no need to set up a sync server, and sync between devices is easy!
- * Task listing won't break with long task text (unlike taskwarrior, currently)
- * `open` command -- **open URLs found in specified task** in the browser
+ * Task listing won't break with long task text ([unlike taskwarrior, currently](https://github.com/GothenburgBitFactory/taskwarrior/issues/2023))
  * `note` command -- edit a **full markdown note** for each task. Checklists are useful here.
+ * `open` command -- **open URLs found in specified task** (including notes) in the browser
  * zsh/bash completion for speed
+ * A single statically-linked binary
 
 Non-features:
 
@@ -69,47 +67,18 @@ Requirements:
 1. Set up an alias in your `.bashrc`: `alias task=dstask` or `alias t=dstask` to make task management slightly faster.
 1. Create or clone a ~/.dstask git repository for the data, if you haven't already: `mkdir ~/.dstask && git -C ~/.dstask init`.
 
+
+There is also an unofficial
+[Nix](https://nixos.org/nixos/packages.html?attr=dstask&channel=nixpkgs-unstable&query=dstask)
+and [Arch AUR](https://aur.archlinux.org/packages/dstask/) package!
+
 # Moving from Taskwarrior
 
-Before installing dstask, you may want to export your taskwarrior database:
-
-    task export > taskwarrior.json
-
-After un-installing taskwarrior and installing dstask, to import the tasks to dstask:
-
-    dstask import-tw < taskwarrior.json
-
-
-Commands and syntax are deliberately very similar to taskwarrior. Here are the exceptions:
-
-  * The command is (nearly) always the first argument. Eg, `task eat some add bananas` won't work, but `task add eat some bananas` will. If there's an ID, it can proceed the command but doesn't have to.
-  * Priorities are added by the keywords `P0` `P1` `P2` `P3`. Lower number is more urgent. Default is `P2`. For example `task add eat some bananas P1`. The keyword can be anywhere after the command.
-  * Action is always the first argument. Eg, `task eat some add bananas` won't work, but `task add eat some bananas` will.
-  * Contexts are defined on-the-fly, and are added to all new tasks if set. Use `--` to ignore current context in any command.
-
-[1]: https://github.com/naggie/dstask/releases/latest
+See [etc/MIGRATION.md](etc/MIGRATION.md)
 
 # Future of dstask
 
-There are a few things missing at the moment. That said I use dstask day to day and trust it with my work.
-
-* Subtask/checklist implementation (github check list style)
-* Task dependencies
-* Recurring tasks
-* Deferred/scheduled tasks with duration
-* Due dates
-
-After these features are implemented, I intend on adding CalDav integration. dstask should be able to act as a CalDav server with the following features:
-
-* Display of recurring tasks
-* Display of appointments/meetings
-* Display of deadlines
-* Display of resolved tasks (maybe, separate calendar)
-* Possible creation of time based tasks from calendar
-
-Running a caldav server would enable synchronisation with an iPhone/Android
-phone, MacOS Calendar, Outlook calendar etc. It would provide similar
-functionality to [timewarrior](https://timewarrior.net/).
+See [etc/FUTURE.md](etc/FUTURE.md)
 
 # Usage
 
@@ -134,6 +103,7 @@ Available commands:
 
 next              : Show most important tasks (priority, creation date -- truncated and default)
 add               : Add a task
+template          : Add a task template
 log               : Log a task (already resolved)
 start             : Change task status to active
 note              : Append to or edit note for a task
@@ -146,12 +116,14 @@ undo              : Undo last action with git revert
 sync              : Pull then push to git repository, automatic merge commit.
 open              : Open all URLs found in summary/annotations
 git               : Pass a command to git in the repository. Used for push/pull.
+remove            : Remove a task (use to remove tasks added by mistake)
 show-projects     : List projects with completion status
 show-tags         : List tags in use
 show-active       : Show tasks that have been started
 show-paused       : Show tasks that have been started then stopped
 show-open         : Show all non-resolved tasks (without truncation)
 show-resolved     : Show resolved tasks
+show-templates    : Show task templates
 show-unorganised  : Show untagged tasks with no projects (global context)
 import-tw         : Import tasks from taskwarrior via stdin
 help              : Get help on any command or show this message
@@ -203,19 +175,9 @@ repository and resolve manually before committing and running `dstask sync`. In
 some rare cases the ID can conflict. This is something dstask will soon be
 equipped to handle automatically when the `sync` command runs.
 
-# A note on performance
+# Performance
 
-Currently I'm using dstask to manage thousands of tasks and the interface still
-appears instant.
-
-Dstask currently loads and parses every non-resolved task, each task being a
-single file. This may sound wasteful, but it allows git to track history
-natively and is actually performant thanks to modern OS disk caches and SSDs.
-
-If it starts to slow down as my number of non-resolved tasks increases, I'll
-look into indexing and other optimisations such as archiving really old tasks.
-I don't believe that this will be necessary, as the number of open tasks is
-(hopefully) bounded.
+See [etc/PERFORMANCE.md](etc/PERFORMANCE.md)
 
 # Issues
 
@@ -234,25 +196,47 @@ import the dstask issues to github.
 * Try to work through tasks from the top of the list. Dstask sorts by priority then creation date -- the most important tasks are at the top.
 * Use `start`/`stop` to mark what you're genuinely working on right now; it makes resuming work faster. Paused tasks will be slightly highlighted, so you won't lose track of them. `show-paused` helps if they start to pile up.
 * Keep a [github-style check list](https://help.github.com/en/articles/about-task-lists) in the markdown note of complex or procedural tasks
+* Failing to get started working? Start with the smallest task
+* Record only required tasks. Track ideas separately, else your task list will grow unboundedly! I keep an `ideas.md` for various projects for this reason.
 
-# Database format
+# Database
 
-The format on disk stores the tasks in a directory according to the task
-status, with each task stored under a yaml file with a UUID4 as the filename.
-UUIDs are used to avoid conflicts when synchronising. The yaml schema is
-defined by this Go struct:
-https://github.com/naggie/dstask/blob/c00bc97c3f0132f1d291fdbe33dfb06e02ca6ef6/task.go#L18
+See [etc/DATABASE_FORMAT.md](etc/DATABASE_FORMAT.md)
 
-This way only non-resolved tasks are actually loaded for most commands, so
-performance is stable even with a large task history.
-
-The ID presented to the user is simply a sequential ID. IDs are re-used when
-tasks are resolved; tasks store their preferred ID for consistency across
-different systems.
+The default database location is `~/.dstask/`, but can be configured by the
+environment variable `DSTASK_GIT_REPO`.
 
 # Alternatives
 
 Alternatives listed must be capable of running in the terminal.
 
+* [TaskLite](https://github.com/ad-si/TaskLite) -- The CLI task manager for power users, written in Haskell
 * [Taskwarrior](https://taskwarrior.org/) -- the closest analogue
 * [Taskbook](https://github.com/klaussinani/taskbook) -- board metaphor, note support
+* [todo.txt-cli](https://github.com/todotxt/todo.txt-cli)
+
+
+# FAQ
+
+> Does dstask encrypt tasks?
+
+Encryption is not a design goal of dstask. If you want to have your remote
+repository encrypted, you may consider
+[git-remote-gcrypt](https://spwhitton.name/tech/code/git-remote-gcrypt/) or
+[git-crypt](https://github.com/AGWA/git-crypt). Note that dstask has not been
+tested with these tools, nor can any claims be made about the security of the
+tools themselves.
+
+> Is it possible to modify more than one task at once with a filter?
+
+Yes.
+
+1. Set a context:
+2. Run a modify command without and ID
+3. Hit y to confirm to modify all tasks in context
+
+This means it's natural to review the tasks that would be modified before
+modifying by listing all tasks in the current context first, instead of
+potentially operating blindly by matching tags or numbers.
+
+You can also specify multiple task numbers at one time, as with any other command.

@@ -20,7 +20,7 @@ optional filter. It is the default command, so "next" is unnecessary.
 Bypass the current context with --.
 `
 	case CMD_ADD:
-		helpStr = `Usage: dstask add [task summary] [--]
+		helpStr = `Usage: dstask add [template:<id>] [task summary] [--]
 Example: dstask add Fix main web page 500 error +bug P1 project:website
 
 Add a task, returning the git commit output which contains the task ID, used
@@ -30,6 +30,40 @@ Tags, project and priority can be added anywhere within the task summary.
 
 Add -- to ignore the current context. / can be used when adding tasks to note
 any words after.
+
+A copy of an existing task can be made by including "template:<id>". See
+"dstask help template" for more information on templates.
+
+`
+	case CMD_TEMPLATE:
+		helpStr = `Usage dstask template <id> [task summary] [--]
+Example: dstask template Fix main web page 500 error +bug P1 project:website
+Example: dstask template 34 project:
+
+If valid task ID is supplied, a coppy of the task is created as a template. If
+no ID is given, a new task template is created.
+
+Tags, project and priority can be added anywhere within the task summary.
+
+Add -- to ignore the current context. / can be used when adding tasks to note
+any words after
+
+Template tasks are stored in the "template/" directory and not displayed with
+"show-open" or "show-next" commands. Their intent is to act as a readily
+available task template for commonly used or repeated tasks.
+
+To create a new task from a template use the command:
+"dstask add template:<id> [task summary] [--]"
+The template task <id> remains unchanged, but a new task is created as a copy
+with any modifications made in the task summary.
+
+`
+	case CMD_RM, CMD_REMOVE:
+		helpStr = `Usage: dstask remove <id...>
+Example: dstask 15 remove
+
+Remove a task permanently from the underlying git repository. This command
+delegates to "git rm".
 
 `
 
@@ -99,9 +133,14 @@ To reset to no context, run: dstask context none
 `
 	case CMD_MODIFY:
 		helpStr = `Usage: dstask <id...> modify <filter>
+Usage: dstask modify <filter>
 Example: dstask 34 modify -work +home project:workbench -project:website
 
-Modify the attributes of a task.
+Modify the attributes of the given tasks, specified by ID. If no ID is given,
+the operation will be performed to all tasks in the current context subject to
+confirmation.
+
+Modifiable attributes: tags, project and priority.
 `
 	case CMD_EDIT:
 		helpStr = `Usage: dstask <id...> edit
@@ -110,9 +149,15 @@ Edit a task in your text editor.
 `
 	case CMD_UNDO:
 		helpStr = `Usage: dstask undo
+Usage: dstask undo <n>
 
-Undo the last command that changed the repository. This uses git revert on one
-or more commits.
+Undo the last <n> commits on the repository. Default is 1. Use
+
+	dstask git log
+
+To see commit history. For more complicated history manipulation it may be best
+to revert/rebase/merge on the dstask repository itself. The dstask repository
+is at ~/.dstask by default.
 `
 	case CMD_SYNC:
 		helpStr = `Usage: dstask sync
@@ -132,6 +177,12 @@ Run the given git command inside ~/.dstask
 
 Show a report of last 1000 resolved tasks.
 `
+	case CMD_SHOW_TEMPLATES:
+		helpStr = `Usage: dtask show-templates [filter] [--]
+
+Show a report of stored template tasks with an optional filter.
+
+Bypass the current context with --`
 	case CMD_OPEN:
 		helpStr = `Usage: dstask <id...> open
 
@@ -171,24 +222,27 @@ Available commands:
 
 next              : Show most important tasks (priority, creation date -- truncated and default)
 add               : Add a task
+template          : Add a task template
 log               : Log a task (already resolved)
 start             : Change task status to active
 note              : Append to or edit note for a task
 stop              : Change task status to pending
 done              : Resolve a task
 context           : Set global context for task list and new tasks (use "none" to set no context)
-modify            : Set attributes for a task
+modify            : Change task attributes specified on command line
 edit              : Edit task with text editor
-undo              : Undo last action with git revert
+undo              : Undo last n commits
 sync              : Pull then push to git repository, automatic merge commit.
 open              : Open all URLs found in summary/annotations
 git               : Pass a command to git in the repository. Used for push/pull.
+remove            : Remove a task (use to remove tasks added by mistake)
 show-projects     : List projects with completion status
 show-tags         : List tags in use
 show-active       : Show tasks that have been started
 show-paused       : Show tasks that have been started then stopped
 show-open         : Show all non-resolved tasks (without truncation)
 show-resolved     : Show resolved tasks
+show-templates    : Show task templates
 show-unorganised  : Show untagged tasks with no projects (global context)
 import-tw         : Import tasks from taskwarrior via stdin
 help              : Get help on any command or show this message

@@ -18,6 +18,7 @@ type CmdLine struct {
 	Project       string
 	AntiProjects  []string
 	Priority      string
+	Template      int
 	Text          string
 	IgnoreContext bool
 	IDsExhausted  bool
@@ -54,6 +55,10 @@ func (cmdLine CmdLine) String() string {
 		args = append(args, cmdLine.Priority)
 	}
 
+	if cmdLine.Template > 0 {
+		args = append(args, "template:"+string(cmdLine.Template))
+	}
+
 	if cmdLine.Text != "" {
 		args = append(args, "\""+cmdLine.Text+"\"")
 	}
@@ -79,6 +84,7 @@ func ParseCmdLine(args ...string) CmdLine {
 	var project string
 	var antiProjects []string
 	var priority string
+	var template int
 	var words []string
 	var notesModeActivated bool
 	var notes []string
@@ -101,22 +107,27 @@ func ParseCmdLine(args ...string) CmdLine {
 
 		IDsExhausted = true
 
-		if strings.HasPrefix(lcItem, "project:") {
+		if item == IGNORE_CONTEXT_KEYWORD {
+			// must be checked before negated tags, as -- is otherwise a valid tag
+			ignoreContext = true
+		} else if item == NOTE_MODE_KEYWORD {
+			notesModeActivated = true
+		} else if strings.HasPrefix(lcItem, "project:") {
 			project = lcItem[8:]
 		} else if strings.HasPrefix(lcItem, "+project:") {
 			project = lcItem[9:]
 		} else if strings.HasPrefix(lcItem, "-project:") {
 			antiProjects = append(antiProjects, lcItem[9:])
-		} else if len(item) > 2 && lcItem[0:1] == "+" {
+		} else if strings.HasPrefix(lcItem, "template:") {
+			if s, err := strconv.ParseInt(lcItem[9:], 10, 64); err == nil {
+				template = int(s)
+			}
+		} else if len(item) > 1 && lcItem[0:1] == "+" {
 			tags = append(tags, lcItem[1:])
-		} else if len(item) > 2 && lcItem[0:1] == "-" {
+		} else if len(item) > 1 && lcItem[0:1] == "-" {
 			antiTags = append(antiTags, lcItem[1:])
 		} else if IsValidPriority(item) {
 			priority = item
-		} else if item == IGNORE_CONTEXT_KEYWORD {
-			ignoreContext = true
-		} else if item == NOTE_MODE_KEYWORD {
-			notesModeActivated = true
 		} else if notesModeActivated {
 			notes = append(notes, item)
 		} else {
@@ -132,6 +143,7 @@ func ParseCmdLine(args ...string) CmdLine {
 		Project:       project,
 		AntiProjects:  antiProjects,
 		Priority:      priority,
+		Template:      template,
 		Text:          strings.Join(words, " "),
 		Note:          strings.Join(notes, " "),
 		IgnoreContext: ignoreContext,

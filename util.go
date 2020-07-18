@@ -1,17 +1,15 @@
 package dstask
 
 import (
-	"encoding/gob"
+	"bufio"
 	"fmt"
-	"github.com/gofrs/uuid"
-	"golang.org/x/sys/unix"
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"os/user"
-	"path"
 	"runtime"
-	"strings"
+
+	"github.com/gofrs/uuid"
+	"golang.org/x/sys/unix"
 )
 
 func ExitFail(format string, a ...interface{}) {
@@ -19,15 +17,20 @@ func ExitFail(format string, a ...interface{}) {
 	os.Exit(1)
 }
 
-func MustExpandHome(filepath string) string {
-	if strings.HasPrefix(filepath, "~/") {
-		usr, err := user.Current()
-		if err != nil {
-			panic(err)
-		}
-		return path.Join(usr.HomeDir, filepath[2:])
+func ConfirmOrAbort(format string, a ...interface{}) {
+	fmt.Fprintf(os.Stderr, format+" [y/n] ", a...)
+
+	reader := bufio.NewReader(os.Stdin)
+
+	input, err := reader.ReadString('\n')
+	if err != nil {
+		panic(err)
+	}
+
+	if input == "y\n" {
+		return
 	} else {
-		return filepath
+		ExitFail("Aborted.")
 	}
 }
 
@@ -69,18 +72,12 @@ func SumInts(vals ...int) int {
 	return total
 }
 
-func MustRunCmd(name string, args ...string) {
+func RunCmd(name string, args ...string) error {
 	cmd := exec.Command(name, args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Run()
-}
-
-func MustRunGitCmd(args ...string) {
-	root := MustExpandHome(GIT_REPO)
-	args = append([]string{"-C", root}, args...)
-	MustRunCmd("git", args...)
+	return cmd.Run()
 }
 
 func MustEditBytes(data []byte, ext string) []byte {
@@ -103,7 +100,11 @@ func MustEditBytes(data []byte, ext string) []byte {
 		ExitFail("Could not write to temporary file to edit")
 	}
 
-	MustRunCmd(editor, tmpfile.Name())
+	err = RunCmd(editor, tmpfile.Name())
+	if err != nil {
+		ExitFail("Failed to run $EDITOR")
+	}
+
 	data, err = ioutil.ReadFile(tmpfile.Name())
 
 	if err != nil {
@@ -121,34 +122,6 @@ func StrSliceContains(haystack []string, needle string) bool {
 	}
 
 	return false
-}
-
-func MustWriteGob(filePath string, object interface{}) {
-	file, err := os.Create(filePath)
-	defer file.Close()
-
-	if err != nil {
-		ExitFail("Failed to open %s for writing: ", filePath)
-	}
-
-	encoder := gob.NewEncoder(file)
-	encoder.Encode(object)
-}
-
-func MustReadGob(filePath string, object interface{}) {
-	file, err := os.Open(filePath)
-	defer file.Close()
-
-	if err != nil {
-		ExitFail("Failed to open %s for reading: ", filePath)
-	}
-
-	decoder := gob.NewDecoder(file)
-	err = decoder.Decode(object)
-
-	if err != nil {
-		ExitFail("Failed to parse gob: %s", filePath)
-	}
 }
 
 func IsValidStateTransition(from string, to string) bool {
@@ -210,4 +183,11 @@ func MustGetTermSize() (int, int) {
 func IsTTY() bool {
 	_, err := unix.IoctlGetWinsize(int(os.Stdout.Fd()), unix.TIOCGWINSZ)
 	return err == nil || FAKE_PTY
+}
+
+func WriteStdout(data []byte) error {
+	if _, err := os.Stdout.Write(data); err != nil {
+		return err
+	}
+	return nil
 }
