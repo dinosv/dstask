@@ -11,7 +11,7 @@
 <p align="center">
 <a href="https://cloud.drone.io/naggie/dstask"><img src="https://cloud.drone.io/api/badges/naggie/dstask/status.svg" /></a>
 <a href="https://goreportcard.com/report/github.com/naggie/dstask"><img src="https://goreportcard.com/badge/github.com/naggie/dstask" /></a>
-<a href="https://img.shields.io/badge/license-MIT-blue.svg"><img src="https://img.shields.io/badge/license-MIT-blue.svg" /></a>
+<a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/license-MIT-blue.svg" /></a>
 </p>
 
 <br>
@@ -160,14 +160,15 @@ version           : Show dstask version information
 
 ## Operators
 
-| Symbol      | Syntax               | Description                                          | Example                                     |
-|-------------|----------------------|------------------------------------------------------|---------------------------------------------|
+| Symbol      | Syntax               | Description                                          | Example                                       |
+|-------------|----------------------|------------------------------------------------------|-----------------------------------------------|
 | `+`         | `+<tag>`             | Include tag. Filter/context, or when adding task.    | `dstask add fix server +work`                 |
 | `-`         | `-<tag>`             | Exclude tag. Filter/context only.                    | `dstask next -feature`                        |
 | `--`        | `--`                 | Ignore context. When listing or adding tasks.        | `dstask --`, `task add -- +home do guttering` |
 | `/`         | `/`                  | When adding a task, everything after will be a note. | `dstask add check out ipfs / https://ipfs.io` |
 | `project:`  | `project:<project>`  | Set project. Filter/context, or when adding task.    | `dstask context project:dstask`               |
 | `-project:` | `-project:<project>` | Exclude project, filter/context only.                | `dstask next -project:dstask -work`           |
+| `template:` | `template:<id>`      | Base new task on a template.                         | `dstask add template:24`                      |
 
 
 ## State
