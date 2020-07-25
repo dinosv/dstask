@@ -85,18 +85,18 @@ const (
 	TABLE_MAX_WIDTH      = 160 // keep it readable
 	TABLE_COL_GAP        = 2   // differentiate columns
 	MODE_HEADER          = 4
-	FG_DEFAULT           = 250
-	BG_DEFAULT_1         = 233
-	BG_DEFAULT_2         = 232
-	MODE_DEFAULT         = 0
-	FG_ACTIVE            = 233
-	BG_ACTIVE            = 250
-	BG_PAUSED            = 236 // task that has been started then stopped
-	FG_PRIORITY_CRITICAL = 160
-	FG_PRIORITY_HIGH     = 166
+	FG_DEFAULT           = 0
+	BG_DEFAULT_1         = 0
+	BG_DEFAULT_2         = 40
+	MODE_DEFAULT         = 1
+	FG_ACTIVE            = 37
+	BG_ACTIVE            = 40
+	BG_PAUSED            = 47 // task that has been started then stopped
+	FG_PRIORITY_CRITICAL = 31
+	FG_PRIORITY_HIGH     = 33
 	FG_PRIORITY_NORMAL   = FG_DEFAULT
-	FG_PRIORITY_LOW      = 245
-	FG_NOTE              = 240
+	FG_PRIORITY_LOW      = 36
+	FG_NOTE              = 34
 )
 
 // for import (etc) it's necessary to have full context

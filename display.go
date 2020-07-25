@@ -20,7 +20,7 @@ func (ts *TaskSet) DisplayByNext(truncate bool) {
 		task := tasks[0]
 		task.Display()
 		if task.Notes != "" {
-			fmt.Printf("\nNotes on task %d:\n\033[38;5;245m%s\033[0m\n\n", task.ID, task.Notes)
+			fmt.Printf("\nNotes on task %d:\n\033[34m%s\033[0m\n\n", task.ID, task.Notes)
 		}
 		return
 	} else {
@@ -232,7 +232,7 @@ func (ts TaskSet) DisplayCriticalTaskWarning() {
 
 	if critical < totalCritical {
 		fmt.Printf(
-			"\033[38;5;%dm%v critical tasks outside this context! Use `dstask -- P0` to see them.\033[0m\n",
+			"\033[%dm%v critical tasks outside this context! Use `dstask -- P0` to see them.\033[0m\n",
 			FG_PRIORITY_CRITICAL,
 			totalCritical-critical,
 		)

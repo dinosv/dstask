@@ -131,9 +131,9 @@ func (t *Table) Render() {
 				trimmed = strings.Replace(
 					FixStr(cells[i], w+2),
 					" "+NOTE_MODE_KEYWORD+" ",
-					fmt.Sprintf("\033[38;5;%dm ", FG_NOTE),
+					fmt.Sprintf("\033[%dm ", FG_NOTE),
 					1,
-				) + fmt.Sprintf("\033[38;5;%dm", fg)
+				) + fmt.Sprintf("\033[%dm", fg)
 			}
 
 			cells[i] = trimmed
@@ -142,6 +142,6 @@ func (t *Table) Render() {
 		line := strings.Join(cells, strings.Repeat(" ", TABLE_COL_GAP))
 
 		// print style, line then reset
-		fmt.Printf("\033[%d;38;5;%d;48;5;%dm%s\033[0m\n", mode, fg, bg, line)
+		fmt.Printf("\033[%d;%d;%dm%s\033[0m\n", mode, fg, bg, line)
 	}
 }

@@ -29,7 +29,7 @@ func MustGitCommit(format string, a ...interface{}) {
 	// could optimise this to be given an explicit list of
 	// added/modified/deleted files -- only if slow.
 	fmt.Printf("\n%s\n", msg)
-	fmt.Printf("\033[38;5;245m")
+	fmt.Printf("\033[38m")
 	MustRunGitCmd("add", ".")
 
 	// check for changes -- returns exit status 1 on change
